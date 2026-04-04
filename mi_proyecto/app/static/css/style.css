@@ -1,0 +1,133 @@
+/* Variables de Color inspiradas en portales médicos */
+:root {
+    --primary-green: #00a499; /* Verde clínico */
+    --accent-orange: #ff6b00; /* Naranja para llamadas a la acción */
+    --light-gray: #f8f9fa;
+    --dark-text: #333333;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--dark-text);
+    background-color: #fff;
+}
+
+/* Navbar */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.nav-link {
+    font-weight: 500;
+    color: #555 !important;
+}
+
+.nav-link:hover {
+    color: var(--primary-green) !important;
+}
+
+.btn-outline-primary {
+    color: var(--primary-green);
+    border-color: var(--primary-green);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-green);
+    color: white;
+}
+
+/* Hero Section */
+.hero-section {
+    background: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.7)), url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1353&q=80');
+    background-size: cover;
+    background-position: center;
+    padding: 100px 0;
+    text-align: center;
+}
+
+.hero-title {
+    color: var(--primary-green);
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.btn-cta-green {
+    background-color: var(--primary-green);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 30px;
+    font-weight: 600;
+}
+
+.btn-cta-orange {
+    background-color: var(--accent-orange);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 30px;
+    font-weight: 600;
+}
+
+/* Servicios Rápidos */
+.service-icon {
+    font-size: 3rem;
+    color: var(--primary-green);
+    margin-bottom: 15px;
+}
+
+/* Botón Flotante WhatsApp */
+.whatsapp-float {
+    position: fixed;
+    width: 60px;
+    height: 60px;
+    bottom: 20px;
+    right: 20px;
+    background-color: #25d366;
+    color: #FFF;
+    border-radius: 50px;
+    text-align: center;
+    font-size: 30px;
+    box-shadow: 2px 2px 3px #999;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.whatsapp-float:hover {
+    background-color: #128c7e;
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Formularios de Autenticación (Login / Registro) */
+.auth-container {
+    background-color: #e8f5e9; /* Verde claro muy suave */
+    border-radius: 15px;
+    padding: 40px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    max-width: 500px;
+    margin: 50px auto;
+}
+
+.auth-title {
+    color: var(--primary-green);
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+/* Dropdown Hover Effect */
+.hover-dropdown:hover .dropdown-menu {
+    display: block;
+    margin-top: 0.125rem;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

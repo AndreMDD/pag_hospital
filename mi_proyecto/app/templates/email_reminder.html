@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .header { background-color: #ff6b00; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background-color: #ffffff; }
+        .details { background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .footer { background-color: #f1f1f1; text-align: center; padding: 10px; font-size: 12px; color: #777; }
+        .btn { display: inline-block; background-color: #00a499; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Recordatorio de Cita</h1>
+        </div>
+        <div class="content">
+            <p>Hola <strong>{{ cita.nombre }}</strong>,</p>
+            <p>Te recordamos que tienes una cita médica programada para el día de mañana en Clínica Salud.</p>
+            
+            <div class="details">
+                <p><strong>Especialidad:</strong> {{ cita.especialidad|replace('_', ' ')|title }}</p>
+                <p><strong>Doctor:</strong> {{ cita.doctor }}</p>
+                <p><strong>Fecha:</strong> {{ cita.fecha }}</p>
+                <p><strong>Hora:</strong> {{ cita.hora }}</p>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <p style="margin-bottom: 15px;">Por favor confirma tu asistencia o cancela si no puedes asistir:</p>
+                <a href="{{ url_for('confirmar_asistencia', cita_id=cita._id, _external=True) }}" class="btn" style="background-color: #28a745; margin-right: 10px;">Confirmar Asistencia</a>
+                <a href="{{ url_for('cancelar_asistencia', cita_id=cita._id, _external=True) }}" class="btn" style="background-color: #dc3545;">Cancelar Cita</a>
+            </div>
+
+            <p>Te esperamos 15 minutos antes de tu hora. Si no puedes asistir, por favor contáctanos para reagendar.</p>
+        </div>
+        <div class="footer">
+            <p>Clínica Salud - Comprometidos con tu bienestar<br>
+            +56 2 2222 2222 | contacto@clinicasalud.cl</p>
+        </div>
+    </div>
+</body>
+</html>

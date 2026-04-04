@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+
+{% block title %}Mi Panel de Salud{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="fw-bold text-dark">Portal Médico de <span class="text-success">{{ current_user.nombre.split()[0] }}</span></h2>
+                <p class="text-muted mb-0">Revisa tu historial o comunícate con nuestra IA para gestionar tu salud.</p>
+            </div>
+            <a href="{{ url_for('reservar') }}" class="btn btn-cta-orange shadow-sm"><i class="fas fa-plus me-2"></i>Agendar Hora</a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Columna Izquierda: Historial Visual (DOM Manipulado por JS) -->
+        <div class="col-lg-7 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom-0 pt-3">
+                    <h5 class="fw-bold text-secondary mb-0"><i class="fas fa-list-alt me-2"></i>Historial de Citas</h5>
+                </div>
+                <div class="card-body overflow-auto" style="max-height: 550px;">
+                    <div id="historial-container">
+                        <div class="text-center text-muted py-5">
+                            <div class="spinner-border text-success" role="status"></div>
+                            <p class="mt-2">Sincronizando historial...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Chat Interactivo Agentes -->
+        <div class="col-lg-5 mb-4">
+            <div class="card border-0 shadow-sm h-100 d-flex flex-column">
+                <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="fas fa-robot me-2"></i>Asistente IA</h5>
+                    <span class="badge bg-light text-success rounded-pill"><i class="fas fa-circle text-success me-1" style="font-size: 8px;"></i>En línea</span>
+                </div>
+                
+                <!-- Área de mensajes -->
+                <div class="card-body overflow-auto d-flex flex-column gap-3" id="chat-box" style="height: 450px; background-color: #f0f2f5;">
+                    <!-- Bienvenida del Chat -->
+                    <div class="d-flex justify-content-start">
+                        <div class="bg-white border rounded-3 p-3 shadow-sm" style="max-width: 85%;">
+                            <p class="mb-1 small fw-bold text-success"><i class="fas fa-network-wired me-1"></i>Agente Principal</p>
+                            <p class="mb-0 small text-dark">Hola. Soy tu red de agentes de salud virtual. Puedes preguntarme por tus próximas citas, o agendar una hora.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Input fijo -->
+                <div class="card-footer bg-white border-top pb-3">
+                    <form id="chat-form" class="input-group shadow-sm rounded-pill p-1 bg-white border">
+                        <input type="text" id="chat-input" class="form-control border-0 rounded-pill shadow-none px-3" placeholder="Ej: ¿Cuándo es mi próxima cita?" required autocomplete="off">
+                        <button type="submit" class="btn btn-success rounded-pill px-4"><i class="fas fa-paper-plane"></i></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- 1. Lógica para renderizar el Historial ---
+    fetch('/get_history')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('historial-container');
+            container.innerHTML = '';
+            
+            if (data.citas.length === 0) {
+                container.innerHTML = '<div class="alert bg-light text-center py-4 border"><i class="fas fa-calendar-times fa-2x text-muted mb-2"></i><p class="mb-0 text-muted">No tienes registros en tu historial clínico.</p></div>';
+                return;
+            }
+            
+            // Creación dinámica de tarjetas para la DB
+            data.citas.forEach(cita => {
+                const card = document.createElement('div');
+                card.className = 'card mb-3 border-start border-4 border-success shadow-sm bg-white';
+                card.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="card-title fw-bold mb-0 text-dark">${(cita.especialidad || 'Consulta Médica').replace(/_/g, ' ').toUpperCase()}</h6>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-2">Vigente</span>
+                        </div>
+                        <p class="text-muted small mb-1"><i class="far fa-calendar-alt me-2"></i><strong>${cita.fecha || 'Por definir'}</strong> a las <strong>${cita.hora || '--:--'} hrs</strong></p>
+                        <p class="text-muted small mb-0"><i class="fas fa-user-md me-2"></i>${cita.doctor || 'Sin asignar'}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('historial-container').innerHTML = '<div class="alert alert-danger">Error de conexión al cargar historial.</div>';
+        });
+
+    // --- 2. Lógica de Interfaz del Chat ---
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatBox = document.getElementById('chat-box');
+
+    function appendMessage(text, isUser, agentName = '') {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `d-flex justify-content-${isUser ? 'end' : 'start'}`;
+        
+        // Estilos dinámicos dependiendo de si es humano o máquina
+        const bgClass = isUser ? 'bg-success text-white' : 'bg-white border text-dark';
+        const titleClass = isUser ? 'text-white-50' : 'text-success';
+        const alignClass = isUser ? 'text-end' : 'text-start';
+        const icon = isUser ? 'fa-user' : 'fa-brain';
+        const name = isUser ? 'Tú' : agentName;
+        
+        msgDiv.innerHTML = `
+            <div class="${bgClass} rounded-3 p-3 shadow-sm" style="max-width: 85%;">
+                <p class="mb-1 small fw-bold ${titleClass} ${alignClass}"><i class="fas ${icon} me-1"></i>${name}</p>
+                <p class="mb-0 small">${text}</p>
+            </div>
+        `;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if (!text) return;
+        
+        // 1. Mostrar mensaje del usuario y limpiar input
+        appendMessage(text, true);
+        chatInput.value = '';
+        
+        // 2. Enviar mensaje a Flask para que procese el Agente
+        fetch('/chat_endpoint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text })
+        })
+        .then(response => response.json())
+        .then(data => appendMessage(data.response, false, data.agent))
+        .catch(error => appendMessage('Error de red al contactar al cerebro central.', false, 'Sistema'));
+    });
+
+    // Delegación de eventos para los botones de respuesta rápida generados por la IA
+    chatBox.addEventListener('click', function(e) {
+        if (e.target.classList.contains('chat-btn-reply')) {
+            const replyText = e.target.getAttribute('data-reply');
+            
+            // Deshabilitar los botones del contenedor para evitar múltiples clics
+            const btnContainer = e.target.closest('div');
+            const buttons = btnContainer.querySelectorAll('.chat-btn-reply');
+            buttons.forEach(btn => btn.disabled = true);
+
+            // Enviar la respuesta como si el usuario la hubiera escrito
+            chatInput.value = replyText;
+            const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
+            chatForm.dispatchEvent(submitEvent);
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica Médica - {% block title %}{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold text-success" href="{{ url_for('index') }}">
+                <i class="fas fa-heartbeat"></i> CLÍNICA SALUD
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="#">Nosotros</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Especialidades</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Servicios</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Seguros</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Información Paciente</a></li>
+                    
+                    {% if session.get('admin_logged_in') %}
+                    <li class="nav-item dropdown ms-2">
+                        <a class="nav-link dropdown-toggle btn btn-outline-danger text-danger border-0 fw-bold" href="#" id="navbarDropdownAdmin" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-shield me-1"></i> Administración
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">Panel Médico</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Cerrar Sesión</a></li>
+                        </ul>
+                    </li>
+                    {% elif current_user.is_authenticated %}
+                    <li class="nav-item dropdown ms-2">
+                        <a class="nav-link dropdown-toggle btn btn-outline-light text-success border-0" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i> {{ current_user.nombre.split()[0] }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('mis_citas') }}">Mi Dashboard</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Cerrar Sesión</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item ms-2">
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                            <i class="fas fa-user"></i> Acceso Pacientes
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Toast Container (Notificaciones) -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="toast align-items-center text-white bg-{{ 'success' if category == 'success' else 'danger' if category == 'danger' else 'primary' }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <i class="fas fa-info-circle me-2"></i> {{ message }}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Contenido Principal -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-lg-start mt-5 border-top">
+        <div class="container p-4">
+            <div class="row">
+                <div class="col-lg-6 col-md-12 mb-4 mb-md-0">
+                    <h5 class="text-uppercase text-success">Clínica Salud</h5>
+                    <p>Comprometidos con tu bienestar y el de tu familia. Tecnología de punta y especialistas de primer nivel.</p>
+                </div>
+                <div class="col-lg-6 col-md-12 mb-4 mb-md-0 text-end">
+                    <p><i class="fas fa-phone me-2"></i> +56 2 2222 2222</p>
+                    <p><i class="fas fa-envelope me-2"></i> contacto@clinicasalud.cl</p>
+                </div>
+            </div>
+        </div>
+        <div class="text-center p-3 bg-success text-white">
+            © 2024 Clínica Salud - Todos los derechos reservados
+        </div>
+    </footer>
+
+    <!-- Botón Flotante WhatsApp -->
+    <a href="https://wa.me/1234567890" class="whatsapp-float" target="_blank">
+        <i class="fab fa-whatsapp"></i>
+    </a>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Inicializar Toasts -->
+    <script>
+        var toastElList = [].slice.call(document.querySelectorAll('.toast'))
+        var toastList = toastElList.map(function (toastEl) {
+            return new bootstrap.Toast(toastEl, { delay: 5000 }).show()
+        })
+    </script>
+
+    <!-- Script para formateo y validación de RUT -->
+    <script src="{{ url_for('static', filename='js/rut_formatter.js') }}"></script>
+</body>
+</html>

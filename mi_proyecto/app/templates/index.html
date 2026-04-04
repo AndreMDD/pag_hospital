@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block title %}Bienvenido{% endblock %}
+
+{% block content %}
+
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h1 class="display-4 hero-title">Tu Salud es Nuestra Prioridad</h1>
+                <p class="lead mb-4">Accede a nuestros servicios médicos de excelencia con la comodidad que mereces.</p>
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                    <div class="dropdown hover-dropdown">
+                        <button class="btn btn-cta-green btn-lg px-4 gap-3 dropdown-toggle" type="button" aria-expanded="false">
+                            <i class="far fa-calendar-check"></i> Reserva de Hora
+                        </button>
+                        <ul class="dropdown-menu shadow border-0">
+                            <li><a class="dropdown-item" href="{{ url_for('reservar') }}">Consultas</a></li>
+                            <li><a class="dropdown-item" href="#">Atención Inmediata</a></li>
+                        </ul>
+                    </div>
+                    <a href="{{ url_for('resultados') }}" class="btn btn-cta-orange btn-lg px-4">
+                        <i class="fas fa-file-medical-alt"></i> Resultados de Exámenes
+                    </a>
+                </div>
+
+                <!-- Formulario de Consulta Rápida -->
+                <div class="mt-5 p-4 bg-white rounded shadow-sm mx-auto" style="max-width: 500px;">
+                    <h5 class="text-secondary mb-3"><i class="fas fa-search me-2"></i>Revisar mis horas agendadas</h5>
+                    <form action="{{ url_for('consultar') }}" method="POST" class="d-flex gap-2">
+                        <input type="text" name="rut_consulta" class="form-control" placeholder="Ingresa tu RUT (ej: 12345678-9)" required>
+                        <button type="submit" class="btn btn-outline-primary">Buscar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Sección de Servicios Rápidos -->
+<section class="py-5 bg-white">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold text-secondary">Accesos Rápidos</h2>
+            <p class="text-muted">Todo lo que necesitas a un clic de distancia</p>
+        </div>
+        
+        <div class="row text-center">
+            <!-- Item 1 -->
+            <div class="col-md-3 mb-4">
+                <div class="p-4 border rounded shadow-sm h-100 hover-effect">
+                    <i class="fas fa-user-md service-icon"></i>
+                    <h5 class="fw-bold mt-3">Staff Médico</h5>
+                    <p class="text-muted small">Conoce a nuestros especialistas.</p>
+                </div>
+            </div>
+            <!-- Item 2 -->
+            <div class="col-md-3 mb-4">
+                <div class="p-4 border rounded shadow-sm h-100 hover-effect">
+                    <i class="fas fa-flask service-icon"></i>
+                    <h5 class="fw-bold mt-3">Laboratorio</h5>
+                    <p class="text-muted small">Exámenes y toma de muestras.</p>
+                </div>
+            </div>
+            <!-- Item 3 -->
+            <div class="col-md-3 mb-4">
+                <div class="p-4 border rounded shadow-sm h-100 hover-effect">
+                    <i class="fas fa-calculator service-icon"></i>
+                    <h5 class="fw-bold mt-3">Presupuesto</h5>
+                    <p class="text-muted small">Cotiza tu intervención o examen.</p>
+                </div>
+            </div>
+            <!-- Item 4 -->
+            <div class="col-md-3 mb-4">
+                <div class="p-4 border rounded shadow-sm h-100 hover-effect">
+                    <i class="fas fa-ambulance service-icon"></i>
+                    <h5 class="fw-bold mt-3">Urgencia</h5>
+                    <p class="text-muted small">Atención 24/7 para emergencias.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

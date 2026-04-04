@@ -1,0 +1,13 @@
+Flask
+Flask-PyMongo
+Flask-WTF
+Flask-Mail
+Flask-Login
+python-dotenv
+pymongo
+dnspython
+email-validator
+certifi
+Werkzeug
+langchain
+groq

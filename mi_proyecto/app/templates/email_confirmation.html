@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .header { background-color: #00a499; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background-color: #ffffff; }
+        .details { background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .footer { background-color: #f1f1f1; text-align: center; padding: 10px; font-size: 12px; color: #777; }
+        .btn { display: inline-block; background-color: #ff6b00; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>¡Reserva Confirmada!</h1>
+        </div>
+        <div class="content">
+            <p>Hola <strong>{{ cita.nombre }}</strong>,</p>
+            <p>Tu hora médica ha sido agendada exitosamente en Clínica Salud. A continuación te entregamos los detalles:</p>
+            
+            <div class="details">
+                <p><strong>Especialidad:</strong> {{ cita.especialidad|replace('_', ' ')|title }}</p>
+                <p><strong>Fecha:</strong> {{ cita.fecha }}</p>
+                <p><strong>Hora:</strong> {{ cita.hora }}</p>
+            </div>
+
+            <p>Por favor, recuerda llegar 15 minutos antes de tu hora agendada.</p>
+        </div>
+        <div class="footer">
+            <p>Clínica Salud - Comprometidos con tu bienestar<br>
+            +56 2 2222 2222 | contacto@clinicasalud.cl</p>
+        </div>
+    </div>
+</body>
+</html>

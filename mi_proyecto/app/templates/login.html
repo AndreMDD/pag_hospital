@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block title %}Iniciar Sesión{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="auth-container border border-success border-opacity-25">
+        <h2 class="auth-title"><i class="fas fa-user-circle"></i> Iniciar Sesión</h2>
+        
+        <!-- El form recibe los campos definidos en app.py -> LoginForm -->
+        <form method="POST" action="">
+            {{ form.hidden_tag() }}
+            
+            <div class="mb-3">
+                {{ form.username.label(class="form-label fw-bold text-secondary") }}
+                {{ form.username(class="form-control", placeholder="Ej: 12345678-9 o admin") }}
+            </div>
+            
+            <div class="mb-4">
+                {{ form.password.label(class="form-label fw-bold text-secondary") }}
+                {{ form.password(class="form-control", placeholder="••••••••") }}
+            </div>
+            
+            <div class="d-grid gap-2">
+                {{ form.submit(class="btn btn-cta-green btn-lg") }}
+            </div>
+        </form>
+        
+        <hr class="mt-4 mb-4 text-success">
+        
+        <!-- Enlace al registro -->
+        <div class="text-center">
+            <p class="mb-1 text-muted">¿Aún no tienes una cuenta?</p>
+            <a href="{{ url_for('registro') }}" class="text-decoration-none fw-bold" style="color: var(--accent-orange);">¡Regístrate aquí!</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block title %}Mi Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="fw-bold text-success"><i class="fas fa-user-circle me-2"></i>Mi Portal de Salud</h2>
+            <p class="text-muted">Bienvenido, {{ current_user.nombre }}</p>
+        </div>
+    </div>
+
+    <!-- Sección: Atenciones Inmediatas -->
+    <div class="card shadow-sm mb-5 border-0">
+        <div class="card-header bg-warning bg-opacity-10 border-warning">
+            <h5 class="mb-0 text-dark fw-bold"><i class="fas fa-bolt text-warning me-2"></i>Atenciones Inmediatas / Urgencias</h5>
+        </div>
+        <div class="card-body">
+            {% if inmediatas %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha Registro</th>
+                                <th>Motivo</th>
+                                <th>Estado</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for atencion in inmediatas %}
+                            <tr>
+                                <td>{{ atencion.fecha_registro }}</td>
+                                <td class="fw-bold">{{ atencion.motivo }}</td>
+                                <td>
+                                    {% if atencion.estado == 'En espera' %}
+                                        <span class="badge bg-warning text-dark">En espera</span>
+                                    {% elif atencion.estado == 'En atención' %}
+                                        <span class="badge bg-primary">En atención</span>
+                                    {% elif atencion.estado == 'Finalizada' %}
+                                        <span class="badge bg-success">Finalizada</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ atencion.estado }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-primary">Ver Detalles</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">No tienes registros de atenciones inmediatas recientes.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Sección: Consultas Agendadas -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-success bg-opacity-10 border-success">
+            <h5 class="mb-0 text-success fw-bold"><i class="far fa-calendar-alt me-2"></i>Consultas Agendadas</h5>
+        </div>
+        <div class="card-body">
+            {% if citas %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    {% for cita in citas %}
+                    <div class="col">
+                        <div class="card h-100 border-start border-4 border-success shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">{{ cita.fecha }} - {{ cita.hora }}</h6>
+                                <h5 class="card-title text-success">{{ cita.especialidad|replace('_', ' ')|title }}</h5>
+                                <p class="card-text small">Especialista asignado al momento de la atención.</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No tienes horas médicas agendadas próximamente.</p>
+                    <a href="{{ url_for('reservar') }}" class="btn btn-success">Agendar Nueva Hora</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

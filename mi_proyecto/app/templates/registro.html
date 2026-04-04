@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+
+{% block title %}Registro de Paciente{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="auth-container border border-success border-opacity-25">
+        <h2 class="auth-title"><i class="fas fa-user-plus"></i> Crear Cuenta</h2>
+        
+        <form method="POST" action="">
+            {{ form.hidden_tag() }}
+            
+            <div class="mb-3">
+                {{ form.rut.label(class="form-label fw-bold text-secondary") }}
+                <!-- El name="rut" activará tu script rut_formatter.js automáticamente -->
+                {{ form.rut(class="form-control", placeholder="Ej: 12345678-9") }}
+            </div>
+            
+            <div class="mb-3">
+                {{ form.nombre.label(class="form-label fw-bold text-secondary") }}
+                {{ form.nombre(class="form-control", placeholder="Tu nombre completo") }}
+            </div>
+            
+            <div class="mb-3">
+                {{ form.email.label(class="form-label fw-bold text-secondary") }}
+                {{ form.email(class="form-control", placeholder="correo@ejemplo.com") }}
+            </div>
+            
+            <div class="mb-3">
+                {{ form.nameUser.label(class="form-label fw-bold text-secondary") }}
+                {{ form.nameUser(class="form-control", placeholder="Ej: tunombre123") }}
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    {{ form.password.label(class="form-label fw-bold text-secondary") }}
+                    {{ form.password(class="form-control", placeholder="••••••••") }}
+                </div>
+                <div class="col-md-6 mb-4">
+                    {{ form.confirm_password.label(class="form-label fw-bold text-secondary") }}
+                    {{ form.confirm_password(class="form-control", placeholder="••••••••") }}
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                {{ form.submit(class="btn btn-cta-green btn-lg") }}
+            </div>
+        </form>
+        
+        <div class="text-center mt-4">
+            <p class="mb-0 text-muted">¿Ya tienes cuenta? <a href="{{ url_for('login') }}" class="text-decoration-none fw-bold" style="color: var(--primary-green);">Inicia sesión aquí</a></p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const emailInput = document.getElementById('email');
+    const nameUserInput = document.getElementById('nameUser');
+    
+    // Bandera para saber si el usuario decidió editar el nombre de usuario manualmente
+    let editadoManualmente = false;
+
+    nameUserInput.addEventListener('input', function() {
+        // Si el usuario edita este campo, dejamos de autocompletarlo
+        editadoManualmente = true;
+    });
+
+    emailInput.addEventListener('input', function() {
+        if (!editadoManualmente) {
+            const emailVal = this.value;
+            const atIndex = emailVal.indexOf('@');
+            
+            // Tomamos todo antes del '@' (o lo que haya escrito hasta el momento)
+            nameUserInput.value = atIndex !== -1 ? emailVal.substring(0, atIndex) : emailVal;
+        }
+    });
+});
+</script>
+{% endblock %}

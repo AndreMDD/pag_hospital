@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+
+{% block title %}Buscar Médico{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h2 class="text-center mb-4 fw-bold text-secondary">Encuentra a tu Especialista</h2>
+    
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-8">
+            <form method="POST" class="d-flex gap-2">
+                <input type="text" name="query" class="form-control form-control-lg" placeholder="Buscar por nombre o especialidad..." value="{{ query }}">
+                <button type="submit" class="btn btn-cta-green btn-lg"><i class="fas fa-search"></i></button>
+            </form>
+        </div>
+    </div>
+
+    {% if query %}
+        <h5 class="mb-3">Resultados para: <strong>"{{ query }}"</strong></h5>
+        <div class="row">
+            {% for medico in medicos %}
+            <div class="col-md-4 mb-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-user-md fa-4x text-success bg-light rounded-circle p-3"></i>
+                        </div>
+                        <h5 class="card-title fw-bold">{{ medico.nombre }}</h5>
+                        <p class="text-muted">{{ medico.especialidad }}</p>
+                        <a href="{{ url_for('reservar') }}" class="btn btn-outline-primary btn-sm rounded-pill">Reservar Hora</a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-search-minus fa-3x text-muted mb-3"></i>
+                <p class="lead text-muted">No encontramos médicos que coincidan con tu búsqueda.</p>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

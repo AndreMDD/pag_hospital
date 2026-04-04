@@ -1,0 +1,172 @@
+{% extends "layout.html" %}
+
+{% block title %}Reserva de Hora{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow border-0">
+                <div class="card-header bg-success text-white text-center py-3">
+                    <h3 class="mb-0 fw-bold">Reserva tu Hora</h3>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.rut.label(class="form-label fw-bold") }}
+                            {{ form.rut(class="form-control", placeholder="12345678-9") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.nombre.label(class="form-label fw-bold") }}
+                            {{ form.nombre(class="form-control") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.email.label(class="form-label fw-bold") }}
+                            {{ form.email(class="form-control", placeholder="nombre@ejemplo.com") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.especialidad.label(class="form-label fw-bold") }}
+                            {{ form.especialidad(class="form-select") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.doctor.label(class="form-label fw-bold") }}
+                            {{ form.doctor(class="form-select", id="doctor-select") }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.fecha.label(class="form-label fw-bold") }}
+                                {{ form.fecha(class="form-control", type="date", id="fecha-input") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.hora.label(class="form-label fw-bold") }}
+                                <div class="position-relative">
+                                    {{ form.hora(class="form-select", id="hora-select", disabled=True) }}
+                                    <div id="hora-spinner" class="position-absolute top-50 end-0 translate-middle-y me-3 d-none">
+                                        <div class="spinner-border spinner-border-sm text-success" role="status">
+                                            <span class="visually-hidden">Cargando...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="text-muted" id="hora-help">Seleccione doctor y fecha primero</small>
+                            </div>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            {{ form.submit(class="btn btn-cta-orange btn-lg") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const especialidadSelect = document.getElementById('especialidad');
+    const doctorSelect = document.getElementById('doctor-select');
+    const fechaInput = document.getElementById('fecha-input');
+    const horaSelect = document.getElementById('hora-select');
+    const horaHelp = document.getElementById('hora-help');
+    const horaSpinner = document.getElementById('hora-spinner');
+
+    // Capturar valor previo de hora (si existe) para restaurar en caso de error
+    const previousHora = "{{ form.hora.data if form.hora.data else '' }}";
+
+    // Bloquear fechas pasadas: Establecer el atributo 'min' con la fecha de hoy (hora local)
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const today = now.toISOString().split('T')[0];
+    fechaInput.setAttribute('min', today);
+
+    function filtrarDoctores() {
+        const especialidad = especialidadSelect.value;
+        
+        // Resetear selectores
+        doctorSelect.innerHTML = '<option value="">Cargando...</option>';
+        doctorSelect.disabled = true;
+        horaSelect.innerHTML = '<option value="">Seleccione una hora...</option>';
+        horaSelect.disabled = true;
+        horaHelp.textContent = "Seleccione doctor y fecha primero";
+
+        fetch(`/api/medicos?especialidad=${especialidad}`)
+            .then(response => response.json())
+            .then(data => {
+                doctorSelect.innerHTML = '<option value="">Seleccione un doctor...</option>';
+                data.forEach(nombre => {
+                    const option = document.createElement('option');
+                    option.value = nombre;
+                    option.textContent = nombre;
+                    doctorSelect.appendChild(option);
+                });
+                doctorSelect.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                doctorSelect.innerHTML = '<option value="">Error al cargar</option>';
+            });
+    }
+
+    function cargarHorarios(horaSeleccionada = null) {
+        const doctor = doctorSelect.value;
+        const fecha = fechaInput.value;
+
+        // Limpiar selector de hora
+        horaSelect.innerHTML = '<option value="">Seleccione una hora...</option>';
+        horaSelect.disabled = true;
+        horaHelp.textContent = "Seleccione doctor y fecha primero";
+
+        if (doctor && fecha) {
+            horaHelp.textContent = "Buscando disponibilidad...";
+            horaSpinner.classList.remove('d-none');
+            
+            // Llamada a la API creada en Flask
+            fetch(`/api/horarios-disponibles?doctor=${encodeURIComponent(doctor)}&fecha=${fecha}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        data.forEach(hora => {
+                            const option = document.createElement('option');
+                            option.value = hora;
+                            option.textContent = hora;
+                            // Restaurar selección si coincide
+                            if (hora === horaSeleccionada) {
+                                option.selected = true;
+                            }
+                            horaSelect.appendChild(option);
+                        });
+                        horaSelect.disabled = false;
+                        horaHelp.textContent = "";
+                    } else {
+                        horaHelp.textContent = "No hay horarios disponibles para esta fecha.";
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    horaHelp.textContent = "Error al cargar horarios.";
+                })
+                .finally(() => {
+                    horaSpinner.classList.add('d-none');
+                });
+        }
+    }
+
+    // Escuchar cambios
+    especialidadSelect.addEventListener('change', filtrarDoctores);
+    doctorSelect.addEventListener('change', () => cargarHorarios());
+    fechaInput.addEventListener('change', () => cargarHorarios());
+
+    // Ejecutar al cargar si ya hay datos (ej: vuelta de error de validación)
+    if (doctorSelect.value && fechaInput.value) {
+        cargarHorarios(previousHora);
+    }
+});
+</script>
+{% endblock %}
