@@ -3,9 +3,11 @@ Flask-PyMongo
 Flask-WTF
 Flask-Mail
 Flask-Login
+Werkzeug
+WTForms
 python-dotenv
 pymongo
 certifi
-Werkzeug
-langchain
+langchain-classic
 groq
+email-validator

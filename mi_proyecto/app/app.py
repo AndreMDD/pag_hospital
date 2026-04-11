@@ -26,12 +26,14 @@ memory = ConversationBufferMemory()
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24).hex())
 app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD') # Definir obligatoriamente en el archivo .env
 
+# Seguridad de Sesión: Evitar acceso prolongado sin uso
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30) # La sesión expira tras 30 min de inactividad
+app.config['SESSION_COOKIE_HTTPONLY'] = True # Protege las cookies de ataques XSS (robo de sesión por JS)
+
 # Configuración MongoDB
-# Ajustamos la URI para conectar específicamente a la base de datos 'clinica_davila'
-uri = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/clinica_davila')
-if '/?' in uri and 'clinica_davila' not in uri:
-    uri = uri.replace('/?', '/clinica_davila?')
-app.config['MONGO_URI'] = uri
+# Tomamos la URI directamente de las variables de entorno. 
+# Si no se provee, por defecto usará la base de datos 'hospital_central'
+app.config['MONGO_URI'] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/hospital_central')
 
 # Configuración Flask-Mail
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
@@ -41,15 +43,39 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 mail = Mail(app)
-mongo = PyMongo(app, tlsCAFile=certifi.where())
+
+if 'mongodb+srv' in app.config['MONGO_URI']:
+    mongo = PyMongo(app, tlsCAFile=certifi.where())
+else:
+    mongo = PyMongo(app)
 
 # Crear índice único para evitar duplicados (Doctor + Fecha + Hora)
 with app.app_context():
-    mongo.db.citas.create_index([("doctor", 1), ("fecha", 1), ("hora", 1)], unique=True)
+    try:
+        mongo.db.citas.create_index([("doctor", 1), ("fecha", 1), ("hora", 1)], unique=True)
+    except Exception as e:
+        print(f"⚠️ Advertencia: No se pudo conectar a MongoDB al iniciar. Revisa tu MONGO_URI y conexión a internet. Detalles: {e}")
 
 # Configuración Flask-Login
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+# --- Interceptores (Hooks) de Seguridad ---
+@app.after_request
+def add_header(response):
+    """
+    Evita que el navegador guarde en caché las páginas.
+    Previene el bug donde el usuario cierra sesión, presiona 'Atrás' y ve los datos de nuevo.
+    """
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+@app.before_request
+def check_session():
+    # Habilita el tiempo límite (30 min) y lo renueva con cada clic/interacción que haga el usuario
+    session.permanent = True
 
 class User(UserMixin):
     def __init__(self, user_data):
@@ -557,4 +583,4 @@ def especialidades(): return redirect(url_for('index'))
 def servicios(): return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)
