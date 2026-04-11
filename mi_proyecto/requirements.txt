@@ -5,8 +5,6 @@ Flask-Mail
 Flask-Login
 python-dotenv
 pymongo
-dnspython
-email-validator
 certifi
 Werkzeug
 langchain
