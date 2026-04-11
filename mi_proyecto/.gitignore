@@ -30,3 +30,9 @@ Thumbs.db
 # Archivos para poblar tablas
 seeder.py
 
+#Archivos de docker
+.dockerignore
+.gitignore
+Dockerfile
+docker-compose.yml
+

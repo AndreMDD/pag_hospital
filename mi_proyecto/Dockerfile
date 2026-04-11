@@ -23,3 +23,5 @@ EXPOSE 5000
 
 # Exponemos el puerto 5000 y ejecutamos la aplicación orientada al exterior
 CMD ["flask", "run", "--host=0.0.0.0"]
+
+# Nota personal: 

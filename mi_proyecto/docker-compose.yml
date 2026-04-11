@@ -10,7 +10,7 @@ services:
       # Toma la URI de conexión a Docker desde el .env
       # IMPORTANTE: Ahora requiere autenticación
       - MONGO_URI=${MONGO_URI_DOCKER:-mongodb://root:tu_password_seguro@mongo:27017/hospital_central?authSource=admin}
-      - FLASK_DEBUG=1
+      - FLASK_DEBUG=1 # Habilita el modo debug para desarrollo
     volumes:
       - .:/app
     depends_on:
