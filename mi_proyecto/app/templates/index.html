@@ -17,8 +17,12 @@
                             <i class="far fa-calendar-check"></i> Reserva de Hora
                         </button>
                         <ul class="dropdown-menu shadow border-0">
-                            <li><a class="dropdown-item" href="{{ url_for('reservar') }}">Consultas</a></li>
-                            <li><a class="dropdown-item" href="#">Atención Inmediata</a></li>
+                            {% if current_user.is_authenticated %}
+                                <li><a class="dropdown-item" href="{{ url_for('mis_citas') }}"><i class="fas fa-robot text-success me-2"></i>Agendar con Asistente IA</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('reservar') }}"><i class="far fa-calendar-alt text-primary me-2"></i>Reserva Manual</a></li>
+                            {% else %}
+                                <li><a class="dropdown-item" href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt text-secondary me-2"></i>Iniciar sesión para agendar</a></li>
+                            {% endif %}
                         </ul>
                     </div>
                     <a href="{{ url_for('resultados') }}" class="btn btn-cta-orange btn-lg px-4">

@@ -13,32 +13,37 @@
             <div class="mb-3">
                 {{ form.rut.label(class="form-label fw-bold text-secondary") }}
                 <!-- El name="rut" activará tu script rut_formatter.js automáticamente -->
-                {{ form.rut(class="form-control", placeholder="Ej: 12345678-9") }}
+                {{ form.rut(class="form-control", placeholder="Ej: 12345678-9", required=True) }}
             </div>
             
             <div class="mb-3">
                 {{ form.nombre.label(class="form-label fw-bold text-secondary") }}
-                {{ form.nombre(class="form-control", placeholder="Tu nombre completo") }}
+                {{ form.nombre(class="form-control", placeholder="Tu nombre completo", required=True) }}
             </div>
             
             <div class="mb-3">
                 {{ form.email.label(class="form-label fw-bold text-secondary") }}
-                {{ form.email(class="form-control", placeholder="correo@ejemplo.com") }}
+                {{ form.email(class="form-control", placeholder="correo@ejemplo.com", required=True) }}
             </div>
             
             <div class="mb-3">
                 {{ form.nameUser.label(class="form-label fw-bold text-secondary") }}
-                {{ form.nameUser(class="form-control", placeholder="Ej: tunombre123") }}
+                {{ form.nameUser(class="form-control", placeholder="Ej: tunombre123", required=True) }}
+            </div>
+
+            <div class="mb-3">
+                {{ form.celular.label(class="form-label fw-bold text-secondary") }}
+                {{ form.celular(class="form-control", placeholder="Ej: +56912345678", required=True) }}
             </div>
             
             <div class="row">
                 <div class="col-md-6 mb-4">
                     {{ form.password.label(class="form-label fw-bold text-secondary") }}
-                    {{ form.password(class="form-control", placeholder="••••••••") }}
+                    {{ form.password(class="form-control", placeholder="••••••••", required=True) }}
                 </div>
                 <div class="col-md-6 mb-4">
                     {{ form.confirm_password.label(class="form-label fw-bold text-secondary") }}
-                    {{ form.confirm_password(class="form-control", placeholder="••••••••") }}
+                    {{ form.confirm_password(class="form-control", placeholder="••••••••", required=True) }}
                 </div>
             </div>
             

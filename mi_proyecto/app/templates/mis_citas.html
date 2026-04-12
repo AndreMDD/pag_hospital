@@ -3,18 +3,15 @@
 {% block title %}Mi Panel de Salud{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Encabezado -->
-    <div class="row mb-4">
-        <div class="col-md-12 d-flex justify-content-between align-items-center">
-            <div>
-                <h2 class="fw-bold text-dark">Portal Médico de <span class="text-success">{{ current_user.nombre.split()[0] }}</span></h2>
-                <p class="text-muted mb-0">Revisa tu historial o comunícate con nuestra IA para gestionar tu salud.</p>
-            </div>
-            <a href="{{ url_for('reservar') }}" class="btn btn-cta-orange shadow-sm"><i class="fas fa-plus me-2"></i>Agendar Hora</a>
-        </div>
+<!-- Título de Página / Banner debajo del Layout -->
+<div class="bg-success bg-opacity-10 border-bottom py-4 mb-4">
+    <div class="container">
+        <h2 class="fw-bold text-dark mb-1">Portal Médico de <span class="text-success">{{ current_user.nombre.split()[0] }}</span></h2>
+        <p class="text-muted mb-0">Revisa tu historial o comunícate con nuestra IA para gestionar tu salud.</p>
     </div>
+</div>
 
+<div class="container pb-4">
     <div class="row">
         <!-- Columna Izquierda: Historial Visual (DOM Manipulado por JS) -->
         <div class="col-lg-7 mb-4">

@@ -82,7 +82,7 @@ class User(UserMixin):
         self.id = str(user_data['_id'])
         self.rut = user_data['rut']
         self.nombre = user_data.get('nombre_completo', user_data.get('nombre'))
-        self.email = user_data.get('contacto', {}).get('email') if 'contacto' in user_data else user_data.get('email')
+        self.email = user_data.get('email')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -116,6 +116,7 @@ class RegistroForm(FlaskForm):
     nombre = StringField('Nombre Completo', validators=[DataRequired()])
     email = StringField('Email', validators=[DataRequired(), Email()])
     nameUser = StringField('Nombre de Usuario', validators=[DataRequired()])
+    celular = StringField('Teléfono Celular', validators=[DataRequired(message='El teléfono es obligatorio')])
     password = PasswordField('Contraseña', validators=[DataRequired(), EqualTo('confirm_password', message='Las contraseñas deben coincidir')])
     confirm_password = PasswordField('Confirmar Contraseña', validators=[DataRequired()])
     submit = SubmitField('Registrarse')
@@ -474,11 +475,9 @@ def registro():
             new_user_data = {
                 'rut': rut_limpio,
                 'nombre_completo': form.nombre.data,
+                'email': form.email.data,
                 'nameUser': form.nameUser.data,
-                'contacto': {
-                    'email': form.email.data,
-                    'celular': '' # Se puede agregar al formulario posteriormente
-                },
+                'celular': form.celular.data,
                 'password': hashed_password,
                 'atenciones': {
                     'consultas_agendadas': [],
@@ -487,11 +486,15 @@ def registro():
                 'examenes_disponibles': []
             }
             result = mongo.db.pacientes.insert_one(new_user_data)
-            new_user_data['_id'] = result.inserted_id
-            login_user(User(new_user_data))
-            flash('Cuenta creada exitosamente. Bienvenido.', 'success')
-            return redirect(url_for('mis_citas'))
-            
+            flash('¡Registro exitoso! Por favor, inicia sesión para continuar.', 'success')
+            return redirect(url_for('login'))
+
+    # Si la validación falla (ej. contraseñas no coinciden o datos vacíos)
+    elif request.method == 'POST':
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"{getattr(form, field).label.text}: {error}", 'danger')
+
     return render_template('registro.html', form=form)
 
 @app.route('/buscar-medico', methods=['GET', 'POST'])
@@ -575,11 +578,9 @@ def logout():
 
 # Rutas adicionales del menú para evitar errores 404
 @app.route('/especialidades')
-@login_required
 def especialidades(): return redirect(url_for('index'))
 
 @app.route('/servicios')
-@login_required
 def servicios(): return redirect(url_for('index'))
 
 if __name__ == '__main__':
