@@ -89,4 +89,3 @@ python app/send_reminders.py
 ```
 
 ---
-*Desarrollado para Clínica Salud.*
