@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+
+{% block title %}Recuperar Contraseña{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="auth-container border border-success border-opacity-25">
+        <h2 class="auth-title"><i class="fas fa-envelope-open-text"></i> Recuperar Contraseña</h2>
+        <p class="text-muted text-center mb-4">Ingresa el correo electrónico asociado a tu cuenta y te enviaremos un código de validación para restablecerla.</p>
+        
+        <form method="POST" action="">
+            {{ form.hidden_tag() }}
+            
+            <div class="mb-4">
+                {{ form.email.label(class="form-label fw-bold text-secondary") }}
+                {{ form.email(class="form-control", placeholder="correo@ejemplo.com", required=True) }}
+            </div>
+            
+            <div class="d-grid gap-2">
+                {{ form.submit(class="btn btn-cta-green btn-lg") }}
+            </div>
+        </form>
+        
+        <div class="text-center mt-4">
+            <a href="{{ url_for('login') }}" class="text-decoration-none fw-bold text-muted"><i class="fas fa-arrow-left me-1"></i> Volver al inicio de sesión</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

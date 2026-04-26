@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+
+{% block title %}Nueva Contraseña{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="auth-container border border-success border-opacity-25">
+        <h2 class="auth-title"><i class="fas fa-lock"></i> Restablecer Contraseña</h2>
+        <p class="text-muted text-center mb-4">Crea una contraseña nueva y segura para tu cuenta.</p>
+        
+        <form method="POST" action="">
+            {{ form.hidden_tag() }}
+            
+            <div class="mb-3">
+                {{ form.password.label(class="form-label fw-bold text-secondary") }}
+                {{ form.password(class="form-control", placeholder="••••••••", required=True) }}
+            </div>
+            
+            <div class="mb-4">
+                {{ form.confirm_password.label(class="form-label fw-bold text-secondary") }}
+                {{ form.confirm_password(class="form-control", placeholder="••••••••", required=True) }}
+            </div>
+            
+            <div class="d-grid gap-2">
+                {{ form.submit(class="btn btn-cta-orange btn-lg") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

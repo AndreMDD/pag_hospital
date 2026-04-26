@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+
+{% block title %}Validar Código{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="auth-container border border-success border-opacity-25">
+        <h2 class="auth-title"><i class="fas fa-key"></i> Código de Seguridad</h2>
+        <p class="text-muted text-center mb-4">Ingresa el código de 6 dígitos que hemos enviado a tu bandeja de entrada o carpeta de spam.</p>
+        
+        <form method="POST" action="">
+            {{ form.hidden_tag() }}
+            
+            <div class="mb-4">
+                {{ form.codigo.label(class="form-label fw-bold text-secondary") }}
+                {{ form.codigo(class="form-control text-center fs-4 letter-spacing-2", placeholder="------", required=True) }}
+            </div>
+            
+            <div class="d-grid gap-2">
+                {{ form.submit(class="btn btn-cta-green btn-lg") }}
+            </div>
+        </form>
+        
+        <div class="text-center mt-4">
+            <p class="mb-1 text-muted small">¿No recibiste el correo?</p>
+            <!-- Le agregamos el id "resend-link" para capturarlo en JavaScript -->
+            <a href="{{ url_for('reenviar_codigo') }}" id="resend-link" class="text-decoration-none fw-bold" style="color: var(--accent-orange);"><i class="fas fa-redo-alt me-1"></i> Reenviar código</a>
+        </div>
+        
+        <div class="text-center mt-3">
+            <a href="{{ url_for('recuperar_password') }}" class="text-decoration-none text-muted small"><i class="fas fa-arrow-left me-1"></i> Usar otro correo</a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const resendLink = document.getElementById("resend-link");
+    const originalText = resendLink.innerHTML;
+    const originalColor = resendLink.style.color;
+    const cooldown = 60; // Tiempo de espera en segundos
+    
+    function updateTimer() {
+        const lastSent = localStorage.getItem('resendCodeTime');
+        if (lastSent) {
+            const now = Date.now();
+            const diff = Math.floor((now - parseInt(lastSent)) / 1000);
+            
+            if (diff < cooldown) {
+                const remaining = cooldown - diff;
+                resendLink.style.pointerEvents = 'none'; // Deshabilita el clic
+                resendLink.style.color = '#6c757d'; // Color gris (text-muted de Bootstrap)
+                resendLink.innerHTML = `<i class="fas fa-hourglass-half me-1"></i> Reenviar en ${remaining}s`;
+                setTimeout(updateTimer, 1000);
+            } else {
+                resendLink.style.pointerEvents = 'auto'; // Vuelve a habilitar el clic
+                resendLink.style.color = originalColor;
+                resendLink.innerHTML = originalText;
+                localStorage.removeItem('resendCodeTime');
+            }
+        }
+    }
+
+    // Al hacer clic, guarda el timestamp justo antes de que la página navegue hacia el backend
+    resendLink.addEventListener("click", function() {
+        localStorage.setItem('resendCodeTime', Date.now());
+    });
+
+    // Comprobar el tiempo nada más cargar la página (vital por la recarga de la redirección)
+    updateTimer();
+});
+</script>
+{% endblock %}

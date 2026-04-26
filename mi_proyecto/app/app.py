@@ -14,6 +14,7 @@ from pymongo.errors import DuplicateKeyError
 import certifi
 from langchain_classic.memory import ConversationBufferMemory
 import random
+import json
 from groq import Groq
 
 # Cargar variables de entorno
@@ -135,6 +136,19 @@ class ReservaForm(FlaskForm):
     fecha = DateField('Fecha', validators=[DataRequired()])
     hora = SelectField('Hora Disponible', choices=[], validate_choice=False)
     submit = SubmitField('Confirmar Reserva')
+
+class RecuperarPasswordForm(FlaskForm):
+    email = StringField('Correo Electrónico', validators=[DataRequired(), Email()])
+    submit = SubmitField('Enviar Código')
+
+class ValidarCodigoForm(FlaskForm):
+    codigo = StringField('Código de Verificación', validators=[DataRequired()])
+    submit = SubmitField('Validar')
+
+class NuevaPasswordForm(FlaskForm):
+    password = PasswordField('Nueva Contraseña', validators=[DataRequired(), EqualTo('confirm_password', message='Las contraseñas deben coincidir')])
+    confirm_password = PasswordField('Confirmar Nueva Contraseña', validators=[DataRequired()])
+    submit = SubmitField('Actualizar Contraseña')
 
 # --- Rutas ---
 
@@ -325,6 +339,44 @@ def get_history():
     
     return jsonify({'citas': citas, 'inmediatas': inmediatas})
 
+# --- FUNCIÓN INTERNA PARA EL CHATBOT (FUNCTION CALLING) ---
+def agendar_cita_bot(especialidad, doctor, fecha, hora, rut, nombre, email, user_id):
+    """Función real que inserta la reserva en MongoDB, llamada indirectamente por el LLM."""
+    # Doble chequeo de disponibilidad real
+    cita_existente = mongo.db.citas.find_one({
+        'doctor': doctor, 'fecha': fecha, 'hora': hora
+    })
+    if cita_existente:
+        return "Error: El horario ya está ocupado. Dile al paciente que elija otra hora o fecha."
+        
+    cita = {
+        'rut': rut.replace(".", "").upper(),
+        'nombre': nombre,
+        'email': email,
+        'especialidad': especialidad,
+        'doctor': doctor,
+        'fecha': fecha,
+        'hora': hora,
+        'estado': 'Reservada',
+        'resultados': [],
+        'created_at': datetime.now()
+    }
+    
+    try:
+        mongo.db.citas.insert_one(cita)
+        cita_paciente = {
+            'especialidad': especialidad,
+            'fecha': fecha,
+            'hora': hora,
+            'doctor': doctor
+        }
+        mongo.db.pacientes.update_one({'_id': ObjectId(user_id)}, {'$push': {'atenciones.consultas_agendadas': cita_paciente}})
+        return f"Éxito: Cita agendada correctamente para el {fecha} a las {hora}."
+    except DuplicateKeyError:
+        return "Error: Colisión detectada, el horario acaba de ser ocupado."
+    except Exception as e:
+        return f"Error interno de base de datos: {str(e)}"
+
 # --- MEMORIA Y PROMPT DE SISTEMA ---
 chat_memories = {}
 
@@ -341,7 +393,7 @@ SYSTEM_PROMPT = """Eres una IA Orquestadora de 3 agentes de salud. Sigue estas r
 3. SCHEDULER (Diversidad): Sugiere doctores de forma rotativa. NO ofrezcas siempre al mismo médico solo por estar de primero en la lista (Evita Sesgo de Disponibilidad).
 
 REGLA DE EXTENSIÓN: Tus respuestas deben ser MUY BREVES, genéricas y directas al grano (máximo 2-3 líneas). No des explicaciones largas.
-REGLA DE CONFIRMACIÓN: Cuando le preguntes al paciente para confirmar una acción (ej: "¿Estás seguro de agendar con el Dr. Pérez?"), DEBES agregar OPCIONES INTERACTIVAS usando EXACTAMENTE este bloque HTML al final de tu respuesta: <div class='mt-2'><button class='btn btn-sm btn-success chat-btn-reply' data-reply='Sí'>Sí</button> <button class='btn btn-sm btn-outline-danger chat-btn-reply' data-reply='No'>No</button></div>
+REGLA DE CONFIRMACIÓN Y AGENDAMIENTO: Cuando pidas confirmación para agendar, agrega EXACTAMENTE este HTML: <div class='mt-2'><button class='btn btn-sm btn-success chat-btn-reply' data-reply='Sí'>Sí</button> <button class='btn btn-sm btn-outline-danger chat-btn-reply' data-reply='No'>No</button></div>. Si el paciente responde afirmativamente, DEBES usar la función 'agendar_cita' para registrarla en la base de datos.
 
 Recuerda: Cuestiona tus propias suposiciones antes de emitir tu respuesta final.
 """
@@ -413,14 +465,65 @@ def chat_endpoint():
         # Inicializar cliente Groq
         groq_client = Groq(api_key=os.environ.get('GROQ_API_KEY'))
         
+        # 1. Definir la herramienta (Esquema JSON que la IA entenderá)
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "agendar_cita",
+                    "description": "Agenda una cita médica en la base de datos. Llama a esta función SOLO cuando el paciente haya confirmado explícitamente la reserva.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "especialidad": {"type": "string", "description": "Especialidad médica (ej. 'Medicina General', 'Cardiología')"},
+                            "doctor": {"type": "string", "description": "Nombre del doctor (ej. 'Dr. Juan Pérez')"},
+                            "fecha": {"type": "string", "description": "Fecha de la cita en formato YYYY-MM-DD"},
+                            "hora": {"type": "string", "description": "Hora de la cita en formato HH:MM (ej. '10:30')"}
+                        },
+                        "required": ["especialidad", "doctor", "fecha", "hora"]
+                    }
+                }
+            }
+        ]
+
         chat_completion = groq_client.chat.completions.create(
             messages=mensajes_llm,
-            model="llama-3.3-70b-versatile", # Modelo de Meta actualizado
-            temperature=0.3, # Temperatura baja para que no alucine información médica
-            max_tokens=800
+            model="llama-3.3-70b-versatile",
+            temperature=0.3,
+            max_tokens=800,
+            tools=tools, # Inyectamos las herramientas
+            tool_choice="auto" # La IA decide cuándo usarlas
         )
-        respuesta_ia = chat_completion.choices[0].message.content
         
+        response_message = chat_completion.choices[0].message
+        
+        # 2. Verificar si la IA decidió ejecutar nuestra función
+        if response_message.tool_calls:
+            # Guardamos en la memoria la intención de la IA de llamar la herramienta
+            mensajes_llm.append({
+                "role": "assistant",
+                "tool_calls": [{"id": t.id, "type": "function", "function": {"name": t.function.name, "arguments": t.function.arguments}} for t in response_message.tool_calls]
+            })
+            
+            # 3. Ejecutar la función real en Python por cada petición de la IA
+            for tool_call in response_message.tool_calls:
+                if tool_call.function.name == "agendar_cita":
+                    args = json.loads(tool_call.function.arguments)
+                    # Inyectamos de forma segura los datos del usuario logueado (current_user)
+                    resultado_db = agendar_cita_bot(args.get("especialidad"), args.get("doctor"), args.get("fecha"), args.get("hora"), current_user.rut, current_user.nombre, current_user.email, str(current_user.id))
+                    
+                    # Devolvemos el resultado de MongoDB a la memoria
+                    mensajes_llm.append({"tool_call_id": tool_call.id, "role": "tool", "name": tool_call.function.name, "content": json.dumps({"resultado": resultado_db})})
+            
+            # 4. Segunda llamada a la IA para que redacte una respuesta final (Ej: "¡Listo, cita agendada!")
+            second_response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=mensajes_llm
+            )
+            respuesta_ia = second_response.choices[0].message.content
+        else:
+            respuesta_ia = response_message.content
+
         # Guardar la respuesta en la memoria de la IA
         memoria.chat_memory.add_ai_message(respuesta_ia)
         return jsonify({"response": respuesta_ia, "agent": "Red de Agentes IA (Groq)"})
@@ -496,6 +599,103 @@ def registro():
                 flash(f"{getattr(form, field).label.text}: {error}", 'danger')
 
     return render_template('registro.html', form=form)
+
+@app.route('/recuperar-password', methods=['GET', 'POST'])
+def recuperar_password():
+    form = RecuperarPasswordForm()
+    if form.validate_on_submit():
+        paciente = mongo.db.pacientes.find_one({'email': form.email.data})
+        if paciente:
+            # Generar un código numérico de 6 dígitos aleatorio
+            codigo = str(random.randint(100000, 999999))
+            session['reset_code'] = codigo
+            session['reset_email'] = form.email.data
+            session['last_resend_time'] = datetime.now().timestamp()
+            
+            try:
+                msg = Message('Código de Recuperación de Contraseña - Clínica Salud',
+                              sender=app.config.get('MAIL_USERNAME'),
+                              recipients=[form.email.data])
+                msg.body = f"Hola, has solicitado restablecer tu contraseña.\n\nTu código de verificación es: {codigo}\n\nSi no solicitaste este cambio, ignora este correo."
+                mail.send(msg)
+                flash('Se ha enviado un código de recuperación a tu correo.', 'info')
+                return redirect(url_for('validar_codigo'))
+            except Exception as e:
+                print(f"Error enviando correo de recuperación: {e}")
+                flash('Hubo un error al intentar enviar el correo. Por favor inténtalo más tarde.', 'danger')
+        else:
+            flash('No se encontró ninguna cuenta asociada a este correo electrónico.', 'danger')
+            
+    return render_template('solicitar_recuperacion.html', form=form)
+
+@app.route('/validar-codigo', methods=['GET', 'POST'])
+def validar_codigo():
+    if 'reset_email' not in session or 'reset_code' not in session:
+        flash('La sesión de recuperación es inválida o ha expirado.', 'warning')
+        return redirect(url_for('recuperar_password'))
+        
+    form = ValidarCodigoForm()
+    if form.validate_on_submit():
+        if form.codigo.data == session['reset_code']:
+            session['codigo_validado'] = True
+            return redirect(url_for('recuperacion'))
+        else:
+            flash('El código ingresado es incorrecto.', 'danger')
+            
+    return render_template('validar_codigo.html', form=form)
+
+@app.route('/reenviar-codigo')
+def reenviar_codigo():
+    if 'reset_email' not in session:
+        flash('No hay una solicitud de recuperación activa.', 'warning')
+        return redirect(url_for('recuperar_password'))
+        
+    # Validación de seguridad: Cooldown de 60 segundos en el backend
+    if 'last_resend_time' in session:
+        tiempo_transcurrido = datetime.now().timestamp() - session['last_resend_time']
+        if tiempo_transcurrido < 60:
+            segundos_restantes = int(60 - tiempo_transcurrido)
+            flash(f'Por seguridad, espera {segundos_restantes} segundos antes de solicitar otro código.', 'warning')
+            return redirect(url_for('validar_codigo'))
+            
+    session['last_resend_time'] = datetime.now().timestamp()
+    
+    # Generar un nuevo código para mayor seguridad
+    codigo = str(random.randint(100000, 999999))
+    session['reset_code'] = codigo
+    
+    try:
+        msg = Message('Nuevo Código de Recuperación - Clínica Salud',
+                      sender=app.config.get('MAIL_USERNAME'),
+                      recipients=[session['reset_email']])
+        msg.body = f"Hola, has solicitado un nuevo código.\n\nTu nuevo código de verificación es: {codigo}\n\nSi no solicitaste este cambio, ignora este correo."
+        mail.send(msg)
+        flash('Se ha enviado un nuevo código a tu correo.', 'info')
+    except Exception as e:
+        print(f"Error enviando correo de recuperación: {e}")
+        flash('Hubo un error al intentar reenviar el correo. Por favor inténtalo más tarde.', 'danger')
+        
+    return redirect(url_for('validar_codigo'))
+
+@app.route('/recuperacion', methods=['GET', 'POST'])
+def recuperacion():
+    if not session.get('codigo_validado') or 'reset_email' not in session:
+        flash('Acceso denegado. Debes validar tu código primero.', 'danger')
+        return redirect(url_for('recuperar_password'))
+        
+    form = NuevaPasswordForm()
+    if form.validate_on_submit():
+        hashed_password = generate_password_hash(form.password.data)
+        mongo.db.pacientes.update_one({'email': session['reset_email']}, {'$set': {'password': hashed_password}})
+        # Limpiar variables de sesión de recuperación
+        session.pop('reset_email', None)
+        session.pop('reset_code', None)
+        session.pop('codigo_validado', None)
+        session.pop('last_resend_time', None)
+        flash('¡Tu contraseña ha sido actualizada de manera exitosa! Ya puedes iniciar sesión.', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('recuperacion.html', form=form)
 
 @app.route('/buscar-medico', methods=['GET', 'POST'])
 @login_required

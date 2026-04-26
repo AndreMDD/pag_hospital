@@ -19,6 +19,9 @@
             <div class="mb-4">
                 {{ form.password.label(class="form-label fw-bold text-secondary") }}
                 {{ form.password(class="form-control", placeholder="••••••••") }}
+                <div class="text-end mt-2">
+                    <a href="{{ url_for('recuperar_password') }}" class="text-decoration-none small fw-bold" style="color: var(--primary-green);">¿Olvidaste tu contraseña?</a>
+                </div>
             </div>
             
             <div class="d-grid gap-2">
