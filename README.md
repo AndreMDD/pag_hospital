@@ -1,24 +1,24 @@
-# 🏥 Clínica Salud - Sistema de Gestión Hospitalaria con IA
+#  Clínica Salud - Sistema de Gestión Hospitalaria con IA
 
 Plataforma web integral para la gestión de pacientes y reserva de citas médicas de "Clínica Salud". Construida con **Flask** y **MongoDB**, esta aplicación destaca por integrar un asistente virtual inteligente basado en **IA (LLaMA 3 vía Groq)** capaz de realizar triage médico y agendar citas de forma conversacional.
 
-## ✨ Características Principales
+##  Características Principales
 
-- 🔐 **Autenticación Completa:** Registro, inicio de sesión seguro, y recuperación de contraseñas mediante códigos de verificación de un solo uso enviados por correo (OTP).
-- 📅 **Reserva de Citas Dinámica:** Sistema de agendamiento con validación de disponibilidad en tiempo real (evita colisiones de horarios) y turnos rotativos para médicos.
-- 🤖 **Agente Inteligente de Salud (IA):** Chatbot orquestador (Triage, Record Keeper, Scheduler) que evalúa síntomas, recuerda el contexto del paciente y agenda horas directamente en la base de datos usando *Function Calling*.
-- 👨‍💻 **Panel de Administración:** Interfaz dedicada para que los administradores puedan buscar, ver y cancelar citas médicas.
-- 📧 **Notificaciones por Correo:** Envío automatizado de confirmaciones de reserva, recuperación de cuentas y un script automatizado (`send_reminders.py`) para recordar citas del día siguiente.
+-  **Autenticación Completa:** Registro, inicio de sesión seguro, y recuperación de contraseñas mediante códigos de verificación de un solo uso enviados por correo (OTP).
+-  **Reserva de Citas Dinámica:** Sistema de agendamiento con validación de disponibilidad en tiempo real (evita colisiones de horarios) y turnos rotativos para médicos.
+-  **Agente Inteligente de Salud (IA):** Chatbot orquestador (Triage, Record Keeper, Scheduler) que evalúa síntomas, recuerda el contexto del paciente y agenda horas directamente en la base de datos usando *Function Calling*.
+-  **Panel de Administración:** Interfaz dedicada para que los administradores puedan buscar, ver y cancelar citas médicas.
+-  **Notificaciones por Correo:** Envío automatizado de confirmaciones de reserva, recuperación de cuentas y un script automatizado (`send_reminders.py`) para recordar citas del día siguiente.
 - 🇨🇱 **Validación Local:** Formateo y validación estricta de RUT chileno integrada tanto en Frontend (JavaScript) como en Backend (Python).
 
-## 🛠️ Tecnologías Utilizadas
+##  Tecnologías Utilizadas
 
 - **Backend:** Python 3, Flask, Flask-Login, Flask-WTF, Flask-Mail.
 - **Base de Datos:** MongoDB (PyMongo), BSON.
 - **Inteligencia Artificial:** Groq API (modelo `llama-3.3-70b-versatile`), LangChain Classic.
 - **Frontend:** HTML5, CSS3, JavaScript, Jinja2 (Templates).
 
-## 🚀 Requisitos Previos
+##  Requisitos Previos
 
 Asegúrate de tener instalado en tu sistema local:
 - Python 3.8+
@@ -26,7 +26,7 @@ Asegúrate de tener instalado en tu sistema local:
 - Cuenta en MongoDB Atlas o servidor local de MongoDB.
 - Cuenta en GroqCloud para obtener la API Key de los modelos de IA.
 
-## ⚙️ Instalación y Configuración
+##  Instalación y Configuración
 
 1. **Clonar el repositorio:**
    ```bash
@@ -72,7 +72,7 @@ Asegúrate de tener instalado en tu sistema local:
    GROQ_API_KEY=tu_api_key_de_groq
    ```
 
-## 🏃‍♂️ Ejecución de la Aplicación
+##  Ejecución de la Aplicación
 
 Para iniciar el servidor de desarrollo, ejecuta el siguiente comando desde la raíz:
 
