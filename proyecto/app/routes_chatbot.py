@@ -4,12 +4,18 @@ from bson.objectid import ObjectId
 from datetime import date
 import os
 import random
+from typing import Annotated, Sequence, TypedDict, Literal
+import operator
 from langchain_groq import ChatGroq
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.tools import tool
+from langgraph.graph import StateGraph, END, START
+from langgraph.prebuilt import create_react_agent
 from . import app, mongo
-from .utils import agendar_cita_bot, obtener_memoria_sesion, SYSTEM_PROMPT
+from .utils import agendar_cita_bot, obtener_memoria_sesion, TRIAGE_PROMPT, SCHEDULER_PROMPT
+
+class AgentState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], operator.add]
 
 @app.route('/chat_endpoint', methods=['POST'])
 @login_required
@@ -40,7 +46,7 @@ def chat_endpoint():
     random.shuffle(todos_medicos)
     medicos_str = ", ".join([f"{m['nombre']} ({m['especialidad']})" for m in todos_medicos])
     
-    contexto_sistema = f"{SYSTEM_PROMPT}\n\nCONTEXTO:\n- Nombre: {current_user.nombre.split()[0]}\n- Próxima Cita: {futuras_str}\n\nMÉDICOS:\n{medicos_str}"
+    contexto_sistema = f"CONTEXTO PACIENTE:\n- Nombre: {current_user.nombre.split()[0]}\n- Próxima Cita: {futuras_str}\n\nMÉDICOS DISPONIBLES:\n{medicos_str}"
     
     try:
         @tool
@@ -56,10 +62,52 @@ def chat_endpoint():
 
         tools = [agendar_cita, consultar_doctores]
         llm = ChatGroq(api_key=os.environ.get('GROQ_API_KEY'), model="llama-3.3-70b-versatile", temperature=0.3)
-        prompt = ChatPromptTemplate.from_messages([("system", contexto_sistema), MessagesPlaceholder(variable_name="chat_history"), ("human", "{input}"), MessagesPlaceholder(variable_name="agent_scratchpad")])
-        agent_executor = AgentExecutor(agent=create_tool_calling_agent(llm, tools, prompt), tools=tools)
-        response = agent_executor.invoke({"input": mensaje, "chat_history": memoria_chat.chat_memory.messages})
-        memoria_chat.chat_memory.add_user_message(mensaje); memoria_chat.chat_memory.add_ai_message(response["output"])
-        return jsonify({"response": response["output"], "agent": "Agente LangChain"})
+
+        # --- NODOS DEL GRAFO MULTI-AGENTE ---
+        def triage_node(state: AgentState):
+            sys_msg = SystemMessage(content=f"{TRIAGE_PROMPT}\n\n{contexto_sistema}")
+            response = llm.invoke([sys_msg] + state["messages"])
+            response.name = "Triage"
+            return {"messages": [response]}
+
+        scheduler_agent = create_react_agent(
+            llm,
+            tools=tools,
+            state_modifier=f"{SCHEDULER_PROMPT}\n\n{contexto_sistema}"
+        )
+
+        def scheduler_node(state: AgentState):
+            result = scheduler_agent.invoke({"messages": state["messages"]})
+            new_messages = result["messages"][len(state["messages"]):]
+            if new_messages and isinstance(new_messages[-1], AIMessage):
+                new_messages[-1].name = "Scheduler"
+            return {"messages": new_messages}
+
+        def supervisor_router(state: AgentState) -> Literal["triage", "scheduler"]:
+            router_prompt = "Eres el orquestador. Si el paciente menciona síntomas o pide recomendación médica, responde 'triage'. Si el paciente explícitamente quiere agendar, cancelar, consultar doctores, o responde 'Sí'/'No' a una reserva, responde 'scheduler'. Responde SOLO con la palabra 'triage' o 'scheduler'."
+            sys_msg = SystemMessage(content=router_prompt)
+            res = llm.invoke([sys_msg] + list(state["messages"][-2:]))
+            return "scheduler" if "scheduler" in res.content.strip().lower() else "triage"
+
+        # --- CONSTRUCCIÓN DEL GRAFO ---
+        workflow = StateGraph(AgentState)
+        workflow.add_node("triage", triage_node)
+        workflow.add_node("scheduler", scheduler_node)
+        workflow.add_conditional_edges(START, supervisor_router)
+        workflow.add_edge("triage", END)
+        workflow.add_edge("scheduler", END)
+        app_graph = workflow.compile()
+
+        # --- EJECUCIÓN CON MEMORIA ---
+        langchain_msgs = memoria_chat.chat_memory.messages.copy()
+        langchain_msgs.append(HumanMessage(content=mensaje))
+        final_state = app_graph.invoke({"messages": langchain_msgs})
+        final_message = final_state["messages"][-1]
+        
+        memoria_chat.chat_memory.add_user_message(mensaje)
+        memoria_chat.chat_memory.add_ai_message(final_message.content)
+        
+        agent_name = final_message.name if final_message.name else "Orquestador"
+        return jsonify({"response": final_message.content, "agent": agent_name})
     except Exception as e:
-        return jsonify({"response": "Error de conexión con el IA.", "agent": "Sistema"})
+        return jsonify({"response": f"Error del sistema multi-agente: {str(e)}", "agent": "Sistema"})

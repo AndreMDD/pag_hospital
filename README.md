@@ -15,7 +15,7 @@ Plataforma web integral para la gestión de pacientes y reserva de citas médica
 
 - **Backend:** Python 3, Flask, Flask-Login, Flask-WTF, Flask-Mail.
 - **Base de Datos:** MongoDB (PyMongo), BSON.
-- **Inteligencia Artificial:** Groq API (modelo `llama-3.3-70b-versatile`), LangChain Classic.
+- **Inteligencia Artificial:** Groq API (modelo `llama-3.3-70b-versatile`), LangChain, LangGraph, LangSmith.
 - **Frontend:** HTML5, CSS3, JavaScript, Jinja2 (Templates).
 
 ##  Requisitos Previos
@@ -70,6 +70,12 @@ Asegúrate de tener instalado en tu sistema local:
 
    # API Key para el Asistente IA
    GROQ_API_KEY=tu_api_key_de_groq
+
+   # Monitoreo de LangChain (LangSmith)
+   LANGCHAIN_TRACING_V2=true
+   LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+   LANGCHAIN_API_KEY=tu_api_key_de_langsmith
+   LANGCHAIN_PROJECT=clinica_salud_produccion
    ```
 
 ##  Ejecución de la Aplicación
