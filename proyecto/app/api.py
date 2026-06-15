@@ -2,7 +2,7 @@ from flask import request, jsonify
 from flask_login import login_required, current_user
 from bson.objectid import ObjectId
 from datetime import datetime, timedelta
-from .. import app, mongo
+from . import app, mongo
 
 @app.route('/api/medicos')
 def api_medicos():

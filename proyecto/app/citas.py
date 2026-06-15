@@ -5,9 +5,9 @@ from pymongo.errors import DuplicateKeyError
 from datetime import date, time, datetime
 from flask_mail import Message
 
-from .. import app, mongo, mail
-from ..forms import ReservaForm
-from ..utils import validar_rut
+from . import app, mongo, mail
+from .forms import ReservaForm
+from .utils import validar_rut
 
 @app.route('/reservar', methods=['GET', 'POST'])
 @login_required

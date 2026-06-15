@@ -1,7 +1,7 @@
 from flask import render_template, redirect, url_for, flash, request, session
 from bson.objectid import ObjectId
 from datetime import date
-from .. import app, mongo
+from . import app, mongo
 
 @app.route('/admin')
 def admin_dashboard():

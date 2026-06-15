@@ -1,5 +1,5 @@
 from flask import render_template, redirect, url_for, flash, request, session, Response
-from .. import app
+from . import app
 
 @app.after_request
 def add_header(response: Response) -> Response:

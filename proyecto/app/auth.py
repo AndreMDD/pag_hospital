@@ -5,9 +5,9 @@ from datetime import datetime
 import random
 from flask_mail import Message
 
-from .. import app, mongo, mail
-from ..forms import LoginForm, RegistroForm, RecuperarPasswordForm, ValidarCodigoForm, NuevaPasswordForm
-from ..models import User
+from . import app, mongo, mail
+from .forms import LoginForm, RegistroForm, RecuperarPasswordForm, ValidarCodigoForm, NuevaPasswordForm
+from .models import User
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

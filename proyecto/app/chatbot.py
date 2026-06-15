@@ -11,8 +11,8 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END, START
 from langgraph.prebuilt import create_react_agent
-from .. import app, mongo
-from ..utils import agendar_cita_bot, obtener_memoria_sesion, TRIAGE_PROMPT, SCHEDULER_PROMPT
+from . import app, mongo
+from .utils import agendar_cita_bot, obtener_memoria_sesion, TRIAGE_PROMPT, SCHEDULER_PROMPT
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
