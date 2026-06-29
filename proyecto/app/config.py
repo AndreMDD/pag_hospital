@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 from datetime import timedelta
 
 # El README indica que el archivo .env se encuentra en la carpeta 'app/'
-load_dotenv()
+basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(basedir, '.env'))
 
 class Config:
     """
@@ -32,3 +33,6 @@ class Config:
 
     # API Key para el servicio de IA (Groq)
     GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+
+    # API Key para el endpoint del Dashboard de Power BI
+    POWERBI_API_KEY = os.environ.get('POWERBI_API_KEY')

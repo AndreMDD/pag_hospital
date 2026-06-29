@@ -16,41 +16,41 @@ def reservar():
     if form.validate_on_submit():
         if form.fecha.data < date.today():
             flash('Error: No se pueden reservar horas en fechas pasadas.', 'danger')
-            return render_template('reservar.html', form=form)
-        try:
-            hora_obj = datetime.strptime(form.hora.data, '%H:%M').time()
-            if not (time(8, 0) <= hora_obj <= time(20, 0)):
-                flash('Error: El horario de atención es de 08:00 a 20:00 hrs.', 'danger')
-                return render_template('reservar.html', form=form)
-        except (ValueError, TypeError):
-            flash('Error: Formato de hora inválido.', 'danger')
-            return render_template('reservar.html', form=form)
-        if not validar_rut(form.rut.data):
-            flash('El RUT ingresado no es válido.', 'danger')
-            return render_template('reservar.html', form=form)
-            
-        if mongo.db.citas.find_one({'doctor': form.doctor.data, 'fecha': str(form.fecha.data), 'hora': form.hora.data}):
-            flash('Lo sentimos, ese horario acaba de ser ocupado. Por favor elija otro.', 'warning')
-            return render_template('reservar.html', form=form)
+            return redirect(url_for('reservar'))
 
-        cita = {
-            'rut': form.rut.data.replace(".", "").upper(), 'nombre': form.nombre.data,
-            'email': form.email.data, 'especialidad': dict(form.especialidad.choices).get(form.especialidad.data),
-            'doctor': form.doctor.data, 'fecha': str(form.fecha.data), 'hora': form.hora.data,
+        fecha_str = form.fecha.data.strftime('%Y-%m-%d')
+        horarios_validos = obtener_horarios_disponibles_doctor([form.doctor.data], fecha_str)
+        if form.hora.data not in horarios_validos:
+            flash('Lo sentimos, el horario seleccionado ya no es válido o acaba de ser ocupado. Por favor, elija otro.', 'warning')
+            return redirect(url_for('reservar'))
+
+        cita_data = {
+            'rut': current_user.rut,
+            'nombre': current_user.nombre,
+            'email': current_user.email,
+            'especialidad': dict(form.especialidad.choices).get(form.especialidad.data),
+            'doctor': form.doctor.data,
+            'fecha': fecha_str,
+            'hora': form.hora.data,
             'estado': 'Reservada', 'resultados': [], 'created_at': datetime.now()
         }
+        cita_id = None
         try:
-            mongo.db.citas.insert_one(cita)
-            mongo.db.pacientes.update_one({'_id': ObjectId(current_user.id)}, {'$push': {'atenciones.consultas_agendadas': {'especialidad': cita['especialidad'], 'fecha': cita['fecha'], 'hora': cita['hora'], 'doctor': cita['doctor']}}})
+            result = mongo.db.citas.insert_one(cita_data)
+            cita_id = result.inserted_id
+            mongo.db.pacientes.update_one({'_id': ObjectId(current_user.id)}, {'$push': {'atenciones.consultas_agendadas': {'especialidad': cita_data['especialidad'], 'fecha': cita_data['fecha'], 'hora': cita_data['hora'], 'doctor': cita_data['doctor']}}})
             try:
-                msg = Message('Confirmación de Reserva', sender=app.config.get('MAIL_USERNAME'), recipients=[cita['email']])
-                msg.html = render_template('email_confirmation.html', cita=cita)
+                msg = Message('Confirmación de Reserva', sender=app.config.get('MAIL_USERNAME'), recipients=[cita_data['email']])
+                msg.html = render_template('email_confirmation.html', cita=cita_data)
                 mail.send(msg)
                 flash(f'Reserva agendada con éxito.', 'success')
             except Exception: flash(f'Reserva agendada, pero hubo un error enviando el correo.', 'warning')
             return redirect(url_for('mis_citas'))
         except DuplicateKeyError:
-            flash('El horario seleccionado acaba de ser reservado.', 'danger')
+            flash('Lo sentimos, el horario seleccionado acaba de ser ocupado. Por favor, elija otro.', 'warning')
+        except WriteError as e:
+            if cita_id: mongo.db.citas.delete_one({'_id': cita_id})
+            flash(f'Error al asociar la cita a tu historial. Inténtalo de nuevo. Detalle: {e}', 'danger')
     return render_template('reservar.html', form=form)
 
 @app.route('/mis-citas')

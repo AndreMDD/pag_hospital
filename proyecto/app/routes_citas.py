@@ -1,13 +1,12 @@
 from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from bson.objectid import ObjectId
-from pymongo.errors import DuplicateKeyError
-from datetime import date, time, datetime
+from pymongo.errors import DuplicateKeyError, WriteError
+from datetime import date, datetime
 from flask_mail import Message
 
 from . import app, mongo, mail
 from .forms import ReservaForm
-from .utils import validar_rut
 
 @app.route('/reservar', methods=['GET', 'POST'])
 @login_required
@@ -16,41 +15,45 @@ def reservar():
     if form.validate_on_submit():
         if form.fecha.data < date.today():
             flash('Error: No se pueden reservar horas en fechas pasadas.', 'danger')
-            return render_template('reservar.html', form=form)
-        try:
-            hora_obj = datetime.strptime(form.hora.data, '%H:%M').time()
-            if not (time(8, 0) <= hora_obj <= time(20, 0)):
-                flash('Error: El horario de atención es de 08:00 a 20:00 hrs.', 'danger')
-                return render_template('reservar.html', form=form)
-        except (ValueError, TypeError):
-            flash('Error: Formato de hora inválido.', 'danger')
-            return render_template('reservar.html', form=form)
-        if not validar_rut(form.rut.data):
-            flash('El RUT ingresado no es válido.', 'danger')
-            return render_template('reservar.html', form=form)
-            
-        if mongo.db.citas.find_one({'doctor': form.doctor.data, 'fecha': str(form.fecha.data), 'hora': form.hora.data}):
-            flash('Lo sentimos, ese horario acaba de ser ocupado. Por favor elija otro.', 'warning')
-            return render_template('reservar.html', form=form)
+            return redirect(url_for('reservar'))
 
-        cita = {
-            'rut': form.rut.data.replace(".", "").upper(), 'nombre': form.nombre.data,
-            'email': form.email.data, 'especialidad': dict(form.especialidad.choices).get(form.especialidad.data),
-            'doctor': form.doctor.data, 'fecha': str(form.fecha.data), 'hora': form.hora.data,
-            'estado': 'Reservada', 'resultados': [], 'created_at': datetime.now()
+        # 1. Refactorización: Usar datos del usuario autenticado en lugar del formulario para mayor seguridad.
+        # 2. Refactorización: La validación de RUT, nombre y email ya no es necesaria aquí si usamos current_user.
+        cita_data = {
+            'rut': current_user.rut,
+            'nombre': current_user.nombre,
+            'email': current_user.email,
+            'especialidad': dict(form.especialidad.choices).get(form.especialidad.data),
+            'doctor': form.doctor.data,
+            'fecha': form.fecha.data.strftime('%Y-%m-%d'),
+            'hora': form.hora.data,
+            'estado': 'Reservada',
+            'resultados': [],
+            'created_at': datetime.now()
         }
+
+        # 3. Seguridad y Refactorización: Se elimina la comprobación manual previa (find_one).
+        # Se confía en un índice único en la BD (`doctor`, `fecha`, `hora`) y se captura el error.
+        # Esto previene "race conditions" de forma robusta.
+        cita_id = None
         try:
-            mongo.db.citas.insert_one(cita)
-            mongo.db.pacientes.update_one({'_id': ObjectId(current_user.id)}, {'$push': {'atenciones.consultas_agendadas': {'especialidad': cita['especialidad'], 'fecha': cita['fecha'], 'hora': cita['hora'], 'doctor': cita['doctor']}}})
+            result = mongo.db.citas.insert_one(cita_data)
+            cita_id = result.inserted_id
+            # 4. Integridad de datos: Se intenta actualizar el historial del paciente.
+            mongo.db.pacientes.update_one({'_id': ObjectId(current_user.id)}, {'$push': {'atenciones.consultas_agendadas': {'especialidad': cita_data['especialidad'], 'fecha': cita_data['fecha'], 'hora': cita_data['hora'], 'doctor': cita_data['doctor']}}})
             try:
-                msg = Message('Confirmación de Reserva', sender=app.config.get('MAIL_USERNAME'), recipients=[cita['email']])
-                msg.html = render_template('email_confirmation.html', cita=cita)
+                msg = Message('Confirmación de Reserva', sender=app.config.get('MAIL_USERNAME'), recipients=[cita_data['email']])
+                msg.html = render_template('email_confirmation.html', cita=cita_data)
                 mail.send(msg)
                 flash(f'Reserva agendada con éxito.', 'success')
             except Exception: flash(f'Reserva agendada, pero hubo un error enviando el correo.', 'warning')
             return redirect(url_for('mis_citas'))
         except DuplicateKeyError:
-            flash('El horario seleccionado acaba de ser reservado.', 'danger')
+            flash('Lo sentimos, el horario seleccionado acaba de ser ocupado. Por favor, elija otro.', 'warning')
+        except WriteError as e:
+            # 5. Integridad de datos: Si falla la escritura en el historial del paciente, se borra la cita creada (rollback manual).
+            if cita_id: mongo.db.citas.delete_one({'_id': cita_id})
+            flash(f'Error al asociar la cita a tu historial. Inténtalo de nuevo. Detalle: {e}', 'danger')
     return render_template('reservar.html', form=form)
 
 @app.route('/mis-citas')

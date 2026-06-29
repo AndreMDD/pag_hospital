@@ -73,20 +73,21 @@ def chat_endpoint():
         scheduler_agent = create_react_agent(
             llm,
             tools=tools,
-            state_modifier=f"{SCHEDULER_PROMPT}\n\n{contexto_sistema}"
+            # El system_message se inyectará directamente en el nodo.
         )
 
         def scheduler_node(state: AgentState):
-            result = scheduler_agent.invoke({"messages": state["messages"]})
-            new_messages = result["messages"][len(state["messages"]):]
+            sys_msg = SystemMessage(content=f"{SCHEDULER_PROMPT}\n\n{contexto_sistema}")
+            result = scheduler_agent.invoke({"messages": [sys_msg] + state["messages"]})
+            new_messages = result["messages"][1:] # Excluimos el system message que acabamos de añadir
             if new_messages and isinstance(new_messages[-1], AIMessage):
                 new_messages[-1].name = "Scheduler"
-            return {"messages": new_messages}
+            return {"messages": new_messages[len(state["messages"]):]}
 
         def supervisor_router(state: AgentState) -> Literal["triage", "scheduler"]:
             router_prompt = "Eres el orquestador. Si el paciente menciona síntomas o pide recomendación médica, responde 'triage'. Si el paciente explícitamente quiere agendar, cancelar, consultar doctores, o responde 'Sí'/'No' a una reserva, responde 'scheduler'. Responde SOLO con la palabra 'triage' o 'scheduler'."
             sys_msg = SystemMessage(content=router_prompt)
-            res = llm.invoke([sys_msg] + list(state["messages"][-2:]))
+            res = llm.invoke([sys_msg] + state["messages"])
             return "scheduler" if "scheduler" in res.content.strip().lower() else "triage"
 
         # --- CONSTRUCCIÓN DEL GRAFO ---

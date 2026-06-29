@@ -71,6 +71,9 @@ Asegúrate de tener instalado en tu sistema local:
    # API Key para el Asistente IA
    GROQ_API_KEY=tu_api_key_de_groq
 
+   # API Key para el Dashboard de PowerBI
+   POWERBI_API_KEY=tu_clave_secreta_para_powerbi
+
    # Monitoreo de LangChain (LangSmith)
    LANGCHAIN_TRACING_V2=true
    LANGCHAIN_ENDPOINT=https://api.smith.langchain.com

@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from flask_login import login_required, current_user
 from bson.objectid import ObjectId
-from datetime import date
+from datetime import date, timedelta
 import os
 import random
 from typing import Annotated, Sequence, TypedDict, Literal
@@ -12,7 +12,7 @@ from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END, START
 from langgraph.prebuilt import create_react_agent
 from . import app, mongo
-from .utils import agendar_cita_bot, obtener_memoria_sesion, TRIAGE_PROMPT, SCHEDULER_PROMPT
+from .utils import agendar_cita_bot, obtener_memoria_sesion, TRIAGE_PROMPT, SCHEDULER_PROMPT, obtener_horarios_disponibles_doctor
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
@@ -55,12 +55,37 @@ def chat_endpoint():
             return agendar_cita_bot(especialidad, doctor, fecha, hora, current_user.rut, current_user.nombre, current_user.email, user_id)
             
         @tool
+        def consultar_disponibilidad_especialidad(especialidad: str) -> str:
+            """Consulta en la BD los próximos 14 días con horas disponibles para una especialidad médica. Útil si el paciente no sabe qué día elegir."""
+            medicos_especialidad = list(mongo.db.medicos.find({"especialidad": {"$regex": especialidad, "$options": "i"}}, {'nombre': 1}))
+            if not medicos_especialidad:
+                return f"No se encontraron doctores para la especialidad '{especialidad}'."
+
+            dias_disponibles = set()
+            hoy = date.today()
+
+            for i in range(14):  # Buscar en los próximos 14 días
+                fecha_a_revisar = hoy + timedelta(days=i)
+                fecha_str = fecha_a_revisar.strftime('%Y-%m-%d')
+                
+                for medico in medicos_especialidad:
+                    horarios_libres = obtener_horarios_disponibles_doctor([medico['nombre']], fecha_str)
+                    if horarios_libres:
+                        dias_disponibles.add(fecha_str)
+                        break  # Si un doctor tiene hora, el día está disponible. Pasamos al siguiente día.
+            
+            if dias_disponibles:
+                return f"Días con disponibilidad para {especialidad}: " + ", ".join(sorted(list(dias_disponibles)))
+            else:
+                return f"No se encontró disponibilidad para {especialidad} en los próximos 14 días."
+
+        @tool
         def consultar_doctores(especialidad: str) -> str:
             """Consulta en la BD los doctores disponibles."""
             medicos = list(mongo.db.medicos.find({"especialidad": {"$regex": especialidad, "$options": "i"}}))
             return "Doctores disponibles: " + ", ".join([f"{m['nombre']} ({m['especialidad']})" for m in medicos]) if medicos else "No encontrados."
 
-        tools = [agendar_cita, consultar_doctores]
+        tools = [agendar_cita, consultar_doctores, consultar_disponibilidad_especialidad]
         llm = ChatGroq(api_key=os.environ.get('GROQ_API_KEY'), model="llama-3.3-70b-versatile", temperature=0.3)
 
         # --- NODOS DEL GRAFO MULTI-AGENTE ---
@@ -73,29 +98,40 @@ def chat_endpoint():
         scheduler_agent = create_react_agent(
             llm,
             tools=tools,
-            state_modifier=f"{SCHEDULER_PROMPT}\n\n{contexto_sistema}"
+            # El system_message se inyectará directamente en el nodo.
         )
 
         def scheduler_node(state: AgentState):
-            result = scheduler_agent.invoke({"messages": state["messages"]})
-            new_messages = result["messages"][len(state["messages"]):]
+            sys_msg = SystemMessage(content=f"{SCHEDULER_PROMPT}\n\n{contexto_sistema}")
+            result = scheduler_agent.invoke({"messages": [sys_msg] + state["messages"]})
+            new_messages = result["messages"][1:] # Excluimos el system message que acabamos de añadir
             if new_messages and isinstance(new_messages[-1], AIMessage):
                 new_messages[-1].name = "Scheduler"
-            return {"messages": new_messages}
+            return {"messages": new_messages[len(state["messages"]):]}
 
-        def supervisor_router(state: AgentState) -> Literal["triage", "scheduler"]:
-            router_prompt = "Eres el orquestador. Si el paciente menciona síntomas o pide recomendación médica, responde 'triage'. Si el paciente explícitamente quiere agendar, cancelar, consultar doctores, o responde 'Sí'/'No' a una reserva, responde 'scheduler'. Responde SOLO con la palabra 'triage' o 'scheduler'."
+        def supervisor_router(state: AgentState) -> Literal["triage", "scheduler", "__end__"]:
+            """
+            Orquestador que decide el siguiente paso.
+            - Si el usuario pregunta por síntomas -> 'triage'
+            - Si el usuario quiere agendar/consultar -> 'scheduler'
+            - Si el usuario se despide o la conversación termina -> '__end__'
+            """
+            router_prompt = "Eres el orquestador. Basado en el último mensaje del paciente, decide a qué agente derivarlo. Si menciona síntomas o pide recomendación médica, responde 'triage'. Si explícitamente quiere agendar, cancelar, consultar doctores, o responde a una reserva, responde 'scheduler'. Si el paciente se despide (adiós, chao, gracias), responde '__end__'. Responde SOLO con la palabra 'triage', 'scheduler', o '__end__'."
             sys_msg = SystemMessage(content=router_prompt)
-            res = llm.invoke([sys_msg] + list(state["messages"][-2:]))
-            return "scheduler" if "scheduler" in res.content.strip().lower() else "triage"
+            # Pasamos solo el último mensaje para una decisión más enfocada en la intención actual
+            res = llm.invoke([sys_msg] + [state["messages"][-1]])
+            decision = res.content.strip().lower()
+            if "triage" in decision: return "triage"
+            if "scheduler" in decision: return "scheduler"
+            return "__end__"
 
         # --- CONSTRUCCIÓN DEL GRAFO ---
         workflow = StateGraph(AgentState)
         workflow.add_node("triage", triage_node)
         workflow.add_node("scheduler", scheduler_node)
-        workflow.add_conditional_edges(START, supervisor_router)
-        workflow.add_edge("triage", END)
-        workflow.add_edge("scheduler", END)
+        workflow.add_conditional_edges(START, supervisor_router, {"triage": "triage", "scheduler": "scheduler", "__end__": END})
+        workflow.add_edge("triage", START)
+        workflow.add_edge("scheduler", START)
         app_graph = workflow.compile()
 
         # --- EJECUCIÓN CON MEMORIA ---
