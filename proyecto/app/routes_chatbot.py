@@ -11,8 +11,8 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END, START
 from langgraph.prebuilt import create_react_agent
-from . import app, mongo
-from .utils import agendar_cita_bot, obtener_memoria_sesion, TRIAGE_PROMPT, SCHEDULER_PROMPT, obtener_horarios_disponibles_doctor
+from . import app, mongo, chatbot
+from .utils import agendar_cita_bot, obtener_memoria_sesion, EVALUADOR_PROMPT, SCHEDULER_PROMPT, obtener_horarios_disponibles_doctor
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
@@ -34,7 +34,7 @@ def chat_endpoint():
         memoria_chat.clear()
         respuesta_reset = "🔄 He borrado el contexto. Por favor, descríbeme tus nuevos síntomas."
         memoria_chat.chat_memory.add_ai_message(respuesta_reset)
-        return jsonify({"response": respuesta_reset, "agent": "Triage Matcher"})
+        return jsonify({"response": respuesta_reset, "agent": "Evaluador"})
 
     paciente = mongo.db.pacientes.find_one({'_id': ObjectId(current_user.id)})
     citas_pasadas = paciente.get('atenciones', {}).get('consultas_agendadas', [])
@@ -89,10 +89,10 @@ def chat_endpoint():
         llm = ChatGroq(api_key=os.environ.get('GROQ_API_KEY'), model="llama-3.3-70b-versatile", temperature=0.3)
 
         # --- NODOS DEL GRAFO MULTI-AGENTE ---
-        def triage_node(state: AgentState):
-            sys_msg = SystemMessage(content=f"{TRIAGE_PROMPT}\n\n{contexto_sistema}")
+        def evaluador_node(state: AgentState):
+            sys_msg = SystemMessage(content=f"{EVALUADOR_PROMPT}\n\n{contexto_sistema}")
             response = llm.invoke([sys_msg] + state["messages"])
-            response.name = "Triage"
+            response.name = "Evaluador"
             return {"messages": [response]}
 
         scheduler_agent = create_react_agent(
@@ -109,28 +109,28 @@ def chat_endpoint():
                 new_messages[-1].name = "Scheduler"
             return {"messages": new_messages[len(state["messages"]):]}
 
-        def supervisor_router(state: AgentState) -> Literal["triage", "scheduler", "__end__"]:
+        def supervisor_router(state: AgentState) -> Literal["evaluador", "scheduler", "__end__"]:
             """
             Orquestador que decide el siguiente paso.
-            - Si el usuario pregunta por síntomas -> 'triage'
+            - Si el usuario pregunta por síntomas -> 'evaluador'
             - Si el usuario quiere agendar/consultar -> 'scheduler'
             - Si el usuario se despide o la conversación termina -> '__end__'
             """
-            router_prompt = "Eres el orquestador. Basado en el último mensaje del paciente, decide a qué agente derivarlo. Si menciona síntomas o pide recomendación médica, responde 'triage'. Si explícitamente quiere agendar, cancelar, consultar doctores, o responde a una reserva, responde 'scheduler'. Si el paciente se despide (adiós, chao, gracias), responde '__end__'. Responde SOLO con la palabra 'triage', 'scheduler', o '__end__'."
+            router_prompt = "Eres el orquestador. Basado en el último mensaje del paciente, decide a qué agente derivarlo. Si menciona síntomas o pide recomendación médica, responde 'evaluador'. Si explícitamente quiere agendar, cancelar, consultar doctores, o responde a una reserva, responde 'scheduler'. Si el paciente se despide (adiós, chao, gracias), responde '__end__'. Responde SOLO con la palabra 'evaluador', 'scheduler', o '__end__'."
             sys_msg = SystemMessage(content=router_prompt)
             # Pasamos solo el último mensaje para una decisión más enfocada en la intención actual
             res = llm.invoke([sys_msg] + [state["messages"][-1]])
             decision = res.content.strip().lower()
-            if "triage" in decision: return "triage"
+            if "evaluador" in decision: return "evaluador"
             if "scheduler" in decision: return "scheduler"
             return "__end__"
 
         # --- CONSTRUCCIÓN DEL GRAFO ---
         workflow = StateGraph(AgentState)
-        workflow.add_node("triage", triage_node)
+        workflow.add_node("evaluador", evaluador_node)
         workflow.add_node("scheduler", scheduler_node)
-        workflow.add_conditional_edges(START, supervisor_router, {"triage": "triage", "scheduler": "scheduler", "__end__": END})
-        workflow.add_edge("triage", START)
+        workflow.add_conditional_edges(START, supervisor_router, {"evaluador": "evaluador", "scheduler": "scheduler", "__end__": END})
+        workflow.add_edge("evaluador", START)
         workflow.add_edge("scheduler", START)
         app_graph = workflow.compile()
 

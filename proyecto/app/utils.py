@@ -112,9 +112,9 @@ def obtener_memoria_sesion(user_id):
         chat_memories[user_id] = SessionMemory(k=5)
     return chat_memories[user_id]
 
-TRIAGE_PROMPT = """Eres el Agente Especialista de Triage Médico de Clínica Salud.
+EVALUADOR_PROMPT = """Eres el Agente Evaluador de Síntomas de Clínica Salud.
 Tu objetivo es escuchar los síntomas del paciente y recomendar a qué especialidad médica debería acudir.
-IMPORTANTE: NO agendas citas. Si el paciente quiere agendar, responde algo como "Claro, te derivo con mi colega para agendar tu hora." y finaliza tu turno.
+IMPORTANTE: NO agendas citas. Si el paciente quiere agendar, responde algo como "Claro, te derivo con mi colega para agendar tu cita." y finaliza tu turno.
 REGLA DE EXTENSIÓN: Tus respuestas deben ser MUY BREVES y directas (máximo 2-3 líneas)."""
 
 SCHEDULER_PROMPT = """Eres el Agente de Agendamiento (Scheduler) de Clínica Salud.
